@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  CLIENT
+  ADMIN
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  INACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYSTACK
+  FLUTTERWAVE
+}
+
+enum PaymentGateway {
+  CARD
+  MOBILE_MONEY
+  BANK_TRANSFER
+}
+
+enum FeatureType {
+  API_CALL
+  SMS
+  MARKET_ACCESS
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  CANCELLED
+  REFUNDED
+  ABANDONED
+}
+
+model User {
+  id                String         @id @default(uuid()) @db.Uuid
+  firstName         String         @map("first_name") @db.VarChar(300)
+  lastName          String         @map("last_name") @db.VarChar(300)
+  email             String         @unique @map("email")
+  phoneNumber       String         @map("phone_number") @db.VarChar(50)
+  preferredLanguage String         @default("en") @map("preferred_language") @db.VarChar(5)
+  ssoUserId         String         @unique @map("sso_user_id")
+  userType          UserType       @map("user_type")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamp(3)
+  apiKeys           ApiKey[]
+  subscriptions     Subscription[]
+  Payment           Payment[]
+  planUsages        PlanUsage[]
+}
+
+model ApiKey {
+  id        String       @id @default(uuid())
+  name      String
+  keyHash   String       @unique @map("key_hash")
+  prefix    String
+  status    ApiKeyStatus @default(ACTIVE)
+  userId    String       @map("user_id") @db.Uuid
+  revoked   Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+}
+
+model Plan {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String         @unique
+  description   String?
+  apiLimit      Int            @map("api_limit")
+  smsLimit      Int            @map("sms_limit")
+  marketLimit   Int            @default(0) @map("market_limit")
+  monthlyPrice  Decimal        @map("monthly_price") @db.Decimal(10, 2)
+  annualPrice   Decimal        @map("annual_price") @db.Decimal(10, 2)
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  subscriptions Subscription[]
+  Payment       Payment[]
+}
+
+model Subscription {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @map("user_id") @db.Uuid
+  planId          String             @map("plan_id") @db.Uuid
+  status          SubscriptionStatus @default(ACTIVE)
+  billingInterval BillingCycle       @default(MONTHLY) @map("billing_interval")
+  startDate       DateTime           @default(now()) @map("start_date")
+  endDate         DateTime           @default(now()) @map("end_date")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  planUsages PlanUsage[]
+}
+
+model Payment {
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  planId            String           @map("plan_id") @db.Uuid
+  amount            Float? // optional to avoid migration failure
+  gateway           PaymentGateway? // optional to avoid migration failure
+  provider          PaymentProvider?
+  status            PaymentStatus?
+  billingCycle      BillingCycle?    @map("billing_cycle")
+  reference         String?          @unique
+  externalReference String?          @map("external_reference")
+  createdAt         DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  plan Plan @relation(fields: [planId], references: [id])
+}
+
+model PlanUsage {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  subscriptionId String      @map("subscription_id") @db.Uuid
+  feature        FeatureType
+  count          Int         @default(0)
+  createdAt      DateTime    @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model Market {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  district  String?
+  region    String?
+  country   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  commodities Commodity[]
+}
+
+model Commodity {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  price         Float
+  measure       String
+  currency      String
+  type          String
+  marketId      String   @map("market_id") @db.Uuid
+  collectedDate DateTime @default(now()) @map("collected_date")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  market Market @relation(fields: [marketId], references: [id])
+}
