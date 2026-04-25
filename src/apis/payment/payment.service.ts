@@ -14,6 +14,10 @@ import type { Queue } from 'bull';
 import prisma from '../../common/prisma';
 import { SubscriptionRepository } from '../../repositories/subscription.repository';
 import { SubscriptionService } from '../subscription/subscription.service';
+import {
+    PaymentValidator,
+    CreatePaymentPayload,
+} from './payment.validator';
 
 @Injectable()
 export class PaymentService {
@@ -29,17 +33,21 @@ export class PaymentService {
         @InjectQueue('payment-queue') private readonly paymentQueue: Queue,
         private readonly subscriptionRepository: SubscriptionRepository,
         private readonly subscriptionService: SubscriptionService,
+        private readonly paymentValidator: PaymentValidator,
     ) { }
 
 
-    async createPayment(body: any, user: any) {
+    async createPayment(body: CreatePaymentPayload, user: any) {
         try {
-            const plan = await this.planRepository.findById(body.planId);
+            const validatedBody = this.paymentValidator.validateCreatePaymentDto(body);
+            const plan = await this.planRepository.findById(validatedBody.planId as string);
             if (!plan) {
-                throw new NotFoundException(`Plan with ID ${body.planId} not found`);
+                throw new NotFoundException(`Plan with ID ${validatedBody.planId} not found`);
             }
 
-            const billingCycle = (body.billingCycle).toUpperCase() === BillingCycle.ANNUAL ? BillingCycle.ANNUAL : BillingCycle.MONTHLY;
+            const billingCycle = validatedBody.billingCycle === BillingCycle.ANNUAL
+                ? BillingCycle.ANNUAL
+                : BillingCycle.MONTHLY;
             const amount = billingCycle === BillingCycle.ANNUAL ? plan.annualPrice : plan.monthlyPrice;
             const paymentReference = uuidv4();
 
@@ -67,7 +75,10 @@ export class PaymentService {
             await this.enqueuePayment(reference, user.id, paymentType);
 
             return paystack;
-        } catch (error) {
+        } catch (error:any) {
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
             if (error instanceof NotFoundException) {
                 throw error;
             }
@@ -80,7 +91,7 @@ export class PaymentService {
         }
     }
 
-    async createTopup(body: any, user: any) {
+    async createTopup(body: { amount?: number | string }, user: any) {
         try {
             const amount = Number(body.amount);
             if (isNaN(amount) || amount <= 0) {

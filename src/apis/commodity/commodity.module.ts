@@ -4,11 +4,12 @@ import { CommodityController } from './commodity.controller';
 import { DeveloperCommodityController } from './developer-commodity.controller';
 import { RepositoriesModule } from '../../repositories/repository.module';
 import { PlanUsageModule } from '../plan-usage/plan-usage.module';
+import { CommodityValidator } from './commodity.validator';
 
 @Module({
   imports: [RepositoriesModule, PlanUsageModule],
   controllers: [CommodityController, DeveloperCommodityController],
-  providers: [CommodityService],
+  providers: [CommodityService, CommodityValidator],
   exports: [CommodityService],
 })
 export class CommodityModule {}

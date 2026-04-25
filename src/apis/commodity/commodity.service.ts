@@ -1,7 +1,7 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { CommodityRepository } from '../../repositories/commodity.repository';
 import { MarketRepository } from '../../repositories/market.repository';
-import { Prisma } from '@prisma/client';
+import { CommodityValidator, CommodityListQuery } from './commodity.validator';
 
 @Injectable()
 export class CommodityService {
@@ -10,57 +10,22 @@ export class CommodityService {
   constructor(
     private readonly commodityRepository: CommodityRepository,
     private readonly marketRepository: MarketRepository,
+    private readonly commodityValidator: CommodityValidator,
   ) {}
 
-  async getCommodities(query: {
-    page?: number;
-    limit?: number;
-    name?: string;
-    price?: number;
-    measure?: string;
-    type?: string;
-    marketId?: string;
-    marketName?: string;
-    marketDistrict?: string;
-    marketRegion?: string;
-    marketCountry?: string;
-    startDate?: string;
-    endDate?: string;
-  }) {
+  async getCommodities(query: CommodityListQuery) {
     try {
-      const page = Number(query.page) || 1;
-      const limit = Number(query.limit) || 20;
-
-      const where: Prisma.CommodityWhereInput = {
-        ...(query.name && { name: { contains: query.name, mode: 'insensitive' } }),
-        ...(query.price && { price: Number(query.price) }),
-        ...(query.measure && { measure: { contains: query.measure, mode: 'insensitive' } }),
-        ...(query.type && { type: { contains: query.type, mode: 'insensitive' } }),
-        ...(query.marketId && { marketId: query.marketId }),
-        ...((query.marketName || query.marketDistrict || query.marketRegion || query.marketCountry) && {
-          market: {
-            ...(query.marketName && { name: { contains: query.marketName, mode: 'insensitive' } }),
-            ...(query.marketDistrict && { district: { contains: query.marketDistrict, mode: 'insensitive' } }),
-            ...(query.marketRegion && { region: { contains: query.marketRegion, mode: 'insensitive' } }),
-            ...(query.marketCountry && { country: { contains: query.marketCountry, mode: 'insensitive' } }),
-          },
-        }),
-        ...((query.startDate || query.endDate) && {
-          collectedDate: {
-            ...(query.startDate && { gte: new Date(query.startDate) }),
-            ...(query.endDate && { lte: new Date(query.endDate) }),
-          },
-        }),
+      const validatedQuery = this.commodityValidator.validateCommodityListQuery(query);
+      const page = Number(validatedQuery.page) || 1;
+      const limit = Number(validatedQuery.limit) || 20;
+      const repositoryQuery = {
+        ...validatedQuery,
+        page,
+        limit,
+        price: validatedQuery.price === undefined ? undefined : Number(validatedQuery.price),
       };
 
-      const [data, total] = await Promise.all([
-        this.commodityRepository.findMany({
-          skip: (page - 1) * limit,
-          take: limit,
-          where,
-        }),
-        this.commodityRepository.count(where),
-      ]);
+      const { data, total } = await this.commodityRepository.findByFilters(repositoryQuery);
 
       return {
         data,
@@ -72,15 +37,19 @@ export class CommodityService {
         },
       };
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       this.logger.error('Error fetching commodities', error);
       throw new BadRequestException('Failed to fetch commodities');
     }
   }
 
   async getCommodityDetails(id: string) {
-    const commodity = await this.commodityRepository.findById(id);
+    const validatedId = this.commodityValidator.validateCommodityId(id);
+    const commodity = await this.commodityRepository.findById(validatedId);
     if (!commodity) {
-      throw new BadRequestException('Commodity not found');
+      throw new NotFoundException('Commodity not found');
     }
     return commodity;
   }
