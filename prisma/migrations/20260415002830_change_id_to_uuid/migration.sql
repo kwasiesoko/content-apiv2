@@ -8,8 +8,22 @@
 -- CreateEnum
 CREATE TYPE "ApiKeyStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'REVOKED', 'EXPIRED');
 
--- Step 1: Add extensions for UUID generation
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Step 1: Provide a local UUID generator so this migration does not need
+-- superuser-only extension privileges in managed Postgres environments.
+CREATE OR REPLACE FUNCTION uuid_generate_v4()
+RETURNS uuid
+LANGUAGE sql
+VOLATILE
+AS $$
+  SELECT (
+    substr(md5(random()::text || clock_timestamp()::text), 1, 8) || '-' ||
+    substr(md5(random()::text || clock_timestamp()::text), 9, 4) || '-' ||
+    '4' || substr(md5(random()::text || clock_timestamp()::text), 14, 3) || '-' ||
+    substr('89ab', floor(random() * 4)::int + 1, 1) ||
+    substr(md5(random()::text || clock_timestamp()::text), 18, 3) || '-' ||
+    substr(md5(random()::text || clock_timestamp()::text), 21, 12)
+  )::uuid;
+$$;
 
 -- Step 2: Add a new UUID column with defaults
 ALTER TABLE "User" ADD COLUMN "new_id" UUID DEFAULT uuid_generate_v4();
