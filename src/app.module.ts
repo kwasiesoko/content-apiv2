@@ -22,6 +22,7 @@ import { TopupModule } from './apis/topup/topup.module';
 import { PlanUsageModule } from './apis/plan-usage/plan-usage.module';
 import { SeedModule } from './apis/seed/seed.module';
 import { CommodityModule } from './apis/commodity/commodity.module';
+import { MarketModule } from './apis/market/market.module';
 import { SubscriptionModule } from './apis/subscription/subscription.module';
 
 
@@ -49,6 +50,7 @@ import { SubscriptionModule } from './apis/subscription/subscription.module';
     PlanUsageModule,
     SeedModule,
     CommodityModule,
+    MarketModule,
     SubscriptionModule
   ],
   controllers: [AppController],
@@ -72,10 +74,11 @@ export class AppModule {
       .apply(UserMiddleware)
       .exclude({ path: 'developers/(.*)', method: RequestMethod.ALL })
       .forRoutes('*');
-
-    consumer
-      .apply(SubscriptionMiddleware)
-      .exclude({ path: 'developers/(.*)', method: RequestMethod.ALL })
-      .forRoutes('*');
   }
+
+  //   consumer
+  //     .apply(SubscriptionMiddleware)
+  //     .exclude({ path: 'developers/(.*)', method: RequestMethod.ALL })
+  //     .forRoutes('*');
+  // }
 }

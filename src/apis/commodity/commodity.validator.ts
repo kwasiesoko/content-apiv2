@@ -9,7 +9,8 @@ export type CommodityListQuery = {
   measure?: string;
   type?: string;
   marketId?: string;
-  marketName?: string;
+  marketIds?: string | string[];
+  markets?: string | string[];
   marketDistrict?: string;
   marketRegion?: string;
   marketCountry?: string;
@@ -28,7 +29,14 @@ export class CommodityValidator {
       measure: Joi.string().trim().optional(),
       type: Joi.string().trim().optional(),
       marketId: Joi.string().trim().optional(),
-      marketName: Joi.string().trim().optional(),
+      marketIds: Joi.alternatives().try(
+        Joi.array().items(Joi.string().trim()),
+        Joi.string().trim()
+      ).optional(),
+      markets: Joi.alternatives().try(
+        Joi.array().items(Joi.string().trim()),
+        Joi.string().trim()
+      ).optional(),
       marketDistrict: Joi.string().trim().optional(),
       marketRegion: Joi.string().trim().optional(),
       marketCountry: Joi.string().trim().optional(),

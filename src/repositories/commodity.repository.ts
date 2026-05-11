@@ -10,7 +10,8 @@ export type CommodityListQuery = {
   measure?: string;
   type?: string;
   marketId?: string;
-  marketName?: string;
+  marketIds?: string | string[];
+  markets?: string | string[];
   marketDistrict?: string;
   marketRegion?: string;
   marketCountry?: string;
@@ -19,8 +20,13 @@ export type CommodityListQuery = {
 };
 
 export type CommodityListResult = {
-  data: Awaited<ReturnType<typeof prisma.commodity.findMany>>;
-  total: number;
+  data: any[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 };
 
 @Injectable()
@@ -28,19 +34,30 @@ export class CommodityRepository {
   private prisma = prisma;
 
   private buildWhere(query: CommodityListQuery): Prisma.CommodityWhereInput {
+    const parse = (val: any) => {
+      if (!val) return undefined;
+      const arr = Array.isArray(val) ? val : String(val).split(',').map(v => v.trim()).filter(Boolean);
+      return arr.length > 0 ? arr : undefined;
+    };
+
+    const marketIds = parse(query.marketIds);
+    const markets = parse(query.markets);
+
     return {
-      ...(query.name && { name: { contains: query.name, mode: 'insensitive' } }),
+      ...(query.name && { name: { contains: query.name, mode: 'insensitive' as const } }),
       ...(query.price !== undefined && { price: Number(query.price) }),
-      ...(query.measure && { measure: { contains: query.measure, mode: 'insensitive' } }),
-      ...(query.type && { type: { contains: query.type, mode: 'insensitive' } }),
-      ...(query.marketId && { marketId: query.marketId }),
-      ...((query.marketName || query.marketDistrict || query.marketRegion || query.marketCountry) && {
+      ...(query.measure && { measure: { contains: query.measure, mode: 'insensitive' as const } }),
+      ...(query.type && { type: { contains: query.type, mode: 'insensitive' as const } }),
+      ...(marketIds ? { marketId: { in: marketIds } } : query.marketId && { marketId: query.marketId }),
+      ...((markets || query.marketDistrict || query.marketRegion || query.marketCountry) && {
         market: {
-          ...(query.marketName && { name: { contains: query.marketName, mode: 'insensitive' } }),
-          ...(query.marketDistrict && { district: { contains: query.marketDistrict, mode: 'insensitive' } }),
-          ...(query.marketRegion && { region: { contains: query.marketRegion, mode: 'insensitive' } }),
-          ...(query.marketCountry && { country: { contains: query.marketCountry, mode: 'insensitive' } }),
-        },
+          AND: [
+            ...(markets ? [{ OR: markets.map(n => ({ name: { equals: n, mode: 'insensitive' as const } })) }] : []),
+            ...(query.marketDistrict ? [{ district: { contains: query.marketDistrict, mode: 'insensitive' as const } }] : []),
+            ...(query.marketRegion ? [{ region: { contains: query.marketRegion, mode: 'insensitive' as const } }] : []),
+            ...(query.marketCountry ? [{ country: { contains: query.marketCountry, mode: 'insensitive' as const } }] : []),
+          ]
+        }
       }),
       ...((query.startDate || query.endDate) && {
         collectedDate: {
@@ -48,7 +65,7 @@ export class CommodityRepository {
           ...(query.endDate && { lte: new Date(query.endDate) }),
         },
       }),
-    };
+    } as Prisma.CommodityWhereInput;
   }
 
   async findMany(params: {
@@ -105,6 +122,14 @@ export class CommodityRepository {
       this.count(where),
     ]);
 
-    return { data, total };
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

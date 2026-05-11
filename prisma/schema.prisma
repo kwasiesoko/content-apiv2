@@ -80,8 +80,11 @@ model User {
   subscriptions     Subscription[]
   Payment           Payment[]
   planUsages        PlanUsage[]
+   
+   @@map("user")
 }
 
+//TODO MAP ALL TABLES 
 model ApiKey {
   id        String       @id @default(uuid())
   name      String
@@ -89,7 +92,7 @@ model ApiKey {
   prefix    String
   status    ApiKeyStatus @default(ACTIVE)
   userId    String       @map("user_id") @db.Uuid
-  revoked   Boolean      @default(false)
+  //TODO REOMOVE THIS STATUS CAN INCLUDE IS revoked   Boolean      @default(false)
   createdAt DateTime     @default(now())
 
   user User @relation(fields: [userId], references: [id], onUpdate: Cascade, onDelete: Cascade)
@@ -100,6 +103,7 @@ model Plan {
   name          String         @unique
   description   String?
   apiLimit      Int            @map("api_limit")
+  //TODO THIS WILL BE ADDED LATER SMS
   smsLimit      Int            @map("sms_limit")
   marketLimit   Int            @default(0) @map("market_limit")
   monthlyPrice  Decimal        @map("monthly_price") @db.Decimal(10, 2)

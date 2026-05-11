@@ -25,17 +25,7 @@ export class CommodityService {
         price: validatedQuery.price === undefined ? undefined : Number(validatedQuery.price),
       };
 
-      const { data, total } = await this.commodityRepository.findByFilters(repositoryQuery);
-
-      return {
-        data,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
+      return this.commodityRepository.findByFilters(repositoryQuery);
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
