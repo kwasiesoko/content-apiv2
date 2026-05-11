@@ -74,11 +74,11 @@ export class AppModule {
       .apply(UserMiddleware)
       .exclude({ path: 'developers/(.*)', method: RequestMethod.ALL })
       .forRoutes('*');
-  }
 
-  //   consumer
-  //     .apply(SubscriptionMiddleware)
-  //     .exclude({ path: 'developers/(.*)', method: RequestMethod.ALL })
-  //     .forRoutes('*');
-  // }
+
+    consumer
+      .apply(SubscriptionMiddleware)
+      .exclude({ path: 'developers/(.*)', method: RequestMethod.ALL })
+      .forRoutes('*');
+  }
 }

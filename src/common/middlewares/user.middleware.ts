@@ -86,6 +86,12 @@ export class UserMiddleware implements NestMiddleware {
           firstName: authenticatedUser.firstName,
           lastName: authenticatedUser.lastName,
         });
+
+        // Check if existing user has any subscription
+        if (!existingUser.subscriptions || existingUser.subscriptions.length === 0) {
+          await this.assignDefaultPlan(existingUser);
+        }
+
         return existingUser;
       }
 

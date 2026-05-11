@@ -6,6 +6,7 @@ export class UserRepository {
   async retrieveUser(ssoId: string) {
     return this.prisma.user.findUnique({
       where: { ssoUserId: ssoId },
+      include: { subscriptions: true },
     });
   }
 
