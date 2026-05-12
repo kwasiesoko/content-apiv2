@@ -14,7 +14,7 @@ export class SubscriptionController {
         return this.subscriptionService.getUserSubscriptions(request.user.id, Number(page), Number(limit));
     }
 
-    
+
     @Get(':id')
     async getSubscriptionById(
         @Req() request: any,
@@ -23,5 +23,4 @@ export class SubscriptionController {
         return this.subscriptionService.getSubscriptionById(id, request.user.id);
     }
 }
-
 
